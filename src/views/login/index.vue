@@ -29,8 +29,8 @@ const loginFormRules: FormRules = {
   password: [
     { required: true, message: "请输入密码", trigger: "blur" },
     { min: 8, max: 16, message: "长度在 8 到 16 个字符", trigger: "blur" }
-  ],
-  code: [{ required: true, message: "请输入验证码", trigger: "blur" }]
+  ]
+  // code: [{ required: true, message: "请输入验证码", trigger: "blur" }]
 }
 /** 登录逻辑 */
 const handleLogin = () => {
@@ -66,7 +66,7 @@ const createCode = () => {
 }
 
 /** 初始化验证码 */
-createCode()
+// createCode()
 </script>
 
 <template>
@@ -99,32 +99,32 @@ createCode()
               show-password
             />
           </el-form-item>
-          <el-form-item prop="code">
-            <el-input
-              v-model.trim="loginFormData.code"
-              placeholder="验证码"
-              type="text"
-              tabindex="3"
-              :prefix-icon="Key"
-              maxlength="7"
-              size="large"
-            >
-              <template #append>
-                <el-image :src="codeUrl" @click="createCode" draggable="false">
-                  <template #placeholder>
-                    <el-icon>
-                      <Picture />
-                    </el-icon>
-                  </template>
-                  <template #error>
-                    <el-icon>
-                      <Loading />
-                    </el-icon>
-                  </template>
-                </el-image>
-              </template>
-            </el-input>
-          </el-form-item>
+          <!--          <el-form-item prop="code">-->
+          <!--            <el-input-->
+          <!--              v-model.trim="loginFormData.code"-->
+          <!--              placeholder="验证码"-->
+          <!--              type="text"-->
+          <!--              tabindex="3"-->
+          <!--              :prefix-icon="Key"-->
+          <!--              maxlength="7"-->
+          <!--              size="large"-->
+          <!--            >-->
+          <!--              <template #append>-->
+          <!--                <el-image :src="codeUrl" @click="createCode" draggable="false">-->
+          <!--                  <template #placeholder>-->
+          <!--                    <el-icon>-->
+          <!--                      <Picture />-->
+          <!--                    </el-icon>-->
+          <!--                  </template>-->
+          <!--                  <template #error>-->
+          <!--                    <el-icon>-->
+          <!--                      <Loading />-->
+          <!--                    </el-icon>-->
+          <!--                  </template>-->
+          <!--                </el-image>-->
+          <!--              </template>-->
+          <!--            </el-input>-->
+          <!--          </el-form-item>-->
           <el-button :loading="loading" type="primary" size="large" @click.prevent="handleLogin">登 录</el-button>
         </el-form>
       </div>
@@ -139,32 +139,39 @@ createCode()
   align-items: center;
   width: 100%;
   min-height: 100%;
+
   .theme-switch {
     position: fixed;
     top: 5%;
     right: 5%;
     cursor: pointer;
   }
+
   .login-card {
     width: 480px;
     border-radius: 20px;
     box-shadow: 0 0 10px #dcdfe6;
     background-color: #fff;
     overflow: hidden;
+
     .title {
       display: flex;
       justify-content: center;
       align-items: center;
       height: 150px;
+
       img {
         height: 100%;
       }
     }
+
     .content {
       padding: 20px 50px 50px 50px;
+
       :deep(.el-input-group__append) {
         padding: 0;
         overflow: hidden;
+
         .el-image {
           width: 100px;
           height: 40px;
@@ -174,6 +181,7 @@ createCode()
           text-align: center;
         }
       }
+
       .el-button {
         width: 100%;
         margin-top: 10px;
