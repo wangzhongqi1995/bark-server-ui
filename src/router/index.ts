@@ -133,6 +133,36 @@ export const constantRoutes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: "/bark",
+    component: Layouts,
+    redirect: "/bark/manage",
+    name: "Bark",
+    meta: {
+      title: "Bark",
+      elIcon: "Grid"
+    },
+    children: [
+      {
+        path: "manage",
+        component: () => import("@/views/bark-info/index.vue"),
+        name: "manage",
+        meta: {
+          title: "Bark管理",
+          keepAlive: true
+        }
+      },
+      {
+        path: "manage1",
+        component: () => import("@/views/bark-info/index.vue"),
+        name: "manage1",
+        meta: {
+          title: "Bark管理",
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
     path: "/menu",
     component: Layouts,
     redirect: "/menu/menu1",
