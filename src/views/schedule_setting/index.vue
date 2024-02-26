@@ -1,7 +1,13 @@
 <script lang="ts" setup>
 import { nextTick, reactive, ref } from "vue"
 import { type ElMessageBoxOptions, ElMessageBox, ElMessage } from "element-plus"
-import { deleteBarkInfoApi, getBarkInfoPageApi, createOrUpdateBarkInfoApi } from "@/api/bark-info"
+import {
+  deleteScheduleSettingApi,
+  getScheduleSettingPageApi,
+  changesStatusApi,
+  updateScheduleSettingApi,
+  createScheduleSettingApi
+} from "@/api/schedule_setting"
 import {
   type VxeGridInstance,
   type VxeGridProps,
@@ -10,22 +16,13 @@ import {
   type VxeFormInstance,
   type VxeFormProps
 } from "vxe-table"
-import { BarkInfoPage, BarkInfoPageResponse } from "@/api/bark-info/types/bark-info"
-import type * as BarkInfo from "@/api/bark-info/types/bark-info"
+import type * as ScheduleSetting from "@/api/schedule_setting/types/schedule_setting"
+import StatusColumnSolts from "@/views/table/vxe-table/tsx/StatusColumnSolts"
 
 defineOptions({
   // 命名当前组件
-  name: "BarkInfo"
+  name: "ScheduleSetting"
 })
-
-//#region vxe-grid
-interface RowMeta {
-  id: string
-  url: string
-  remark: string
-  /** vxe-table 自动添加上去的属性 */
-  _VXE_ID?: string
-}
 
 const xGridDom = ref<VxeGridInstance>()
 const xGridOpt: VxeGridProps = reactive({
@@ -39,10 +36,10 @@ const xGridOpt: VxeGridProps = reactive({
   formConfig: {
     items: [
       {
-        field: "url",
+        field: "beanName",
         itemRender: {
           name: "$input",
-          props: { placeholder: "地址", clearable: true }
+          props: { placeholder: "实例名称", clearable: true }
         }
       },
       {
@@ -69,7 +66,7 @@ const xGridOpt: VxeGridProps = reactive({
   /** 自定义列配置项 */
   customConfig: {
     /** 是否允许列选中  */
-    checkMethod: ({ column }) => !["url"].includes(column.field)
+    checkMethod: ({ column }) => !["jobId"].includes(column.field)
   },
   /** 列配置 */
   columns: [
@@ -78,16 +75,29 @@ const xGridOpt: VxeGridProps = reactive({
       width: "50px"
     },
     {
-      field: "url",
-      title: "地址"
+      field: "beanName",
+      title: "实例名称"
     },
     {
-      field: "remark",
-      title: "备注"
+      field: "methodName",
+      title: "方法名称"
+    },
+    {
+      field: "methodParams",
+      title: "方法参数"
+    },
+    {
+      field: "cronExpression",
+      title: "表达式"
+    },
+    {
+      field: "jobStatus",
+      title: "状态",
+      slots: StatusColumnSolts
     },
     {
       title: "操作",
-      width: "150px",
+      width: "300px",
       fixed: "right",
       showOverflow: false,
       slots: { default: "row-operate" }
@@ -110,9 +120,9 @@ const xGridOpt: VxeGridProps = reactive({
         crudStore.clearTable()
         return new Promise((resolve) => {
           let total = 0
-          let result: BarkInfoPage[] = []
+          let result: ScheduleSetting.ScheduleSettingPage[] = []
           /** 加载数据 */
-          const callback = (res: BarkInfoPageResponse) => {
+          const callback = (res: ScheduleSetting.ScheduleSettingPageResponse) => {
             if (res?.rows) {
               // 总数
               total = res.total
@@ -125,14 +135,13 @@ const xGridOpt: VxeGridProps = reactive({
           }
 
           /** 接口需要的参数 */
-          const params: BarkInfo.BarkInfoPageParam = {
-            url: form.username || undefined,
-            remark: form.phone || undefined,
+          const params: ScheduleSetting.ScheduleSettingPageParam = {
+            beanName: form.beanName || undefined,
             pageSize: page.pageSize,
             pageNum: page.currentPage
           }
           /** 调用接口 */
-          getBarkInfoPageApi(params).then(callback).catch(callback)
+          getScheduleSettingPageApi(params).then(callback).catch(callback)
         })
       }
     }
@@ -158,21 +167,54 @@ const xModalOpt: VxeModalProps = reactive({
 const xFormDom = ref<VxeFormInstance>()
 const xFormOpt: VxeFormProps = reactive({
   span: 24,
+  titleAlign: "right",
   titleWidth: "100px",
   loading: false,
   /** 是否显示标题冒号 */
   titleColon: false,
   /** 表单数据 */
   data: {
-    url: "",
+    jobId: "",
+    beanName: "",
+    methodName: "",
+    methodParams: "",
+    cronExpression: "",
+    jobStatus: 1,
     remark: ""
   },
   /** 项列表 */
   items: [
     {
-      field: "url",
-      title: "地址",
+      field: "beanName",
+      title: "实例名称",
       itemRender: { name: "$input", props: { placeholder: "请输入" } }
+    },
+    {
+      field: "methodName",
+      title: "方法名称",
+      itemRender: { name: "$input", props: { placeholder: "请输入" } }
+    },
+    {
+      field: "methodParams",
+      title: "方法参数",
+      itemRender: { name: "$input", props: { placeholder: "请输入" } }
+    },
+    {
+      field: "cronExpression",
+      title: "表达式",
+      itemRender: { name: "$input", props: { placeholder: "请输入" } }
+    },
+    {
+      field: "jobStatus",
+      title: "状态",
+      itemRender: {
+        name: "$select",
+        options: [
+          { label: "启用", value: 1 },
+          { label: "禁用", value: 0 }
+        ],
+        props: { placeholder: "请输入" }
+      }
     },
     {
       field: "remark",
@@ -195,7 +237,33 @@ const xFormOpt: VxeFormProps = reactive({
   ],
   /** 校验规则 */
   rules: {
-    url: [
+    beanName: [
+      {
+        required: true,
+        validator: ({ itemValue }) => {
+          switch (true) {
+            case !itemValue:
+              return new Error("请输入")
+            case !itemValue.trim():
+              return new Error("空格无效")
+          }
+        }
+      }
+    ],
+    methodName: [
+      {
+        required: true,
+        validator: ({ itemValue }) => {
+          switch (true) {
+            case !itemValue:
+              return new Error("请输入")
+            case !itemValue.trim():
+              return new Error("空格无效")
+          }
+        }
+      }
+    ],
+    cronExpression: [
       {
         required: true,
         validator: ({ itemValue }) => {
@@ -221,22 +289,26 @@ const crudStore = reactive({
   /** 清空表格数据 */
   clearTable: () => xGridDom.value?.reloadData([]),
   /** 点击显示弹窗 */
-  onShowModal: (row?: RowMeta) => {
+  onShowModal: (row?: ScheduleSetting.ScheduleSettingPage) => {
     if (row) {
       crudStore.isUpdate = true
       xModalOpt.title = "修改"
       // 赋值
-      xFormOpt.data.url = row.url
-      xFormOpt.data.id = row.id
+      xFormOpt.data.beanName = row.beanName
+      xFormOpt.data.jobId = row.jobId
+      xFormOpt.data.methodName = row.methodName
+      xFormOpt.data.methodParams = row.methodParams
+      xFormOpt.data.cronExpression = row.cronExpression
+      xFormOpt.data.jobStatus = row.jobStatus
       xFormOpt.data.remark = row.remark
     } else {
-      xFormOpt.data.id = ""
+      xFormOpt.data.jobId = ""
       crudStore.isUpdate = false
       xModalOpt.title = "新增"
     }
     // 禁用表单项
-    const props = xFormOpt.items?.[0]?.itemRender?.props
-    props && (props.disabled = crudStore.isUpdate)
+    // const props = xFormOpt.items?.[0]?.itemRender?.props
+    // props && (props.disabled = crudStore.isUpdate)
     xModalDom.value?.open()
     nextTick(() => {
       !crudStore.isUpdate && xFormDom.value?.reset()
@@ -258,9 +330,17 @@ const crudStore = reactive({
       }
       if (crudStore.isUpdate) {
         // 模拟调用修改接口成功
-        createOrUpdateBarkInfoApi(xFormOpt.data).then(() => callback())
+        updateScheduleSettingApi(xFormOpt.data)
+          .then(() => callback())
+          .catch(() => {
+            xFormOpt.loading = true
+          })
       } else {
-        createOrUpdateBarkInfoApi(xFormOpt.data).then(() => callback())
+        createScheduleSettingApi(xFormOpt.data)
+          .then(() => callback())
+          .catch(() => {
+            xFormOpt.loading = true
+          })
       }
     })
   },
@@ -274,9 +354,9 @@ const crudStore = reactive({
       }
     }
   },
-  /** 删除 */
-  onDelete: (row: RowMeta) => {
-    const tip = `确定 <strong style="color: red"> 删除 </strong> 地址 <strong style="color: #409eff"> ${row.url} </strong> ？`
+  /** 更新状态 */
+  onUpdateJobStatus: (row: ScheduleSetting.ScheduleSettingPage) => {
+    const tip = `确定 <strong style="color: red"> ${row.jobStatus === 1 ? "禁用" : "启用"} </strong> 实例名称 <strong style="color: #409eff"> ${row.beanName} </strong> ？`
     const config: ElMessageBoxOptions = {
       type: "warning",
       showClose: true,
@@ -287,7 +367,35 @@ const crudStore = reactive({
       dangerouslyUseHTMLString: true
     }
     ElMessageBox.confirm(tip, "提示", config).then(() => {
-      deleteBarkInfoApi(row.id).then(() => {
+      changesStatusApi(row.jobId, row.jobStatus === 1 ? 0 : 1).then(() => {
+        ElMessage.success(`${row.jobStatus === 1 ? "禁用" : "启用"}成功`)
+        crudStore.afterUpdateJobStatus()
+        crudStore.commitQuery()
+      })
+    })
+  },
+  /** 删除后是否返回上一页 */
+  afterUpdateJobStatus: () => {
+    const tableData: ScheduleSetting.ScheduleSettingPage[] = xGridDom.value!.getData()
+    const pager = xGridDom.value?.getProxyInfo()?.pager
+    if (pager && pager.currentPage > 1 && tableData.length === 1) {
+      --pager.currentPage
+    }
+  },
+  /** 删除 */
+  onDelete: (row: ScheduleSetting.ScheduleSettingPage) => {
+    const tip = `确定 <strong style="color: red"> 删除 </strong> 实例名称 <strong style="color: #409eff"> ${row.beanName} </strong> ？`
+    const config: ElMessageBoxOptions = {
+      type: "warning",
+      showClose: true,
+      closeOnClickModal: true,
+      closeOnPressEscape: true,
+      cancelButtonText: "取消",
+      confirmButtonText: "确定",
+      dangerouslyUseHTMLString: true
+    }
+    ElMessageBox.confirm(tip, "提示", config).then(() => {
+      deleteScheduleSettingApi(row.jobId).then(() => {
         ElMessage.success("删除成功")
         crudStore.afterDelete()
         crudStore.commitQuery()
@@ -296,7 +404,7 @@ const crudStore = reactive({
   },
   /** 删除后是否返回上一页 */
   afterDelete: () => {
-    const tableData: RowMeta[] = xGridDom.value!.getData()
+    const tableData: ScheduleSetting.ScheduleSettingPage[] = xGridDom.value!.getData()
     const pager = xGridDom.value?.getProxyInfo()?.pager
     if (pager && pager.currentPage > 1 && tableData.length === 1) {
       --pager.currentPage
@@ -315,11 +423,13 @@ const crudStore = reactive({
       <!-- 左侧按钮列表 -->
       <template #toolbar-btns>
         <vxe-button status="primary" icon="vxe-icon-add" @click="crudStore.onShowModal()">新增</vxe-button>
-        <vxe-button status="danger" icon="vxe-icon-delete">批量删除</vxe-button>
       </template>
       <!-- 操作 -->
       <template #row-operate="{ row }">
         <el-button link type="primary" @click="crudStore.onShowModal(row)">修改</el-button>
+        <el-button link type="primary" @click="crudStore.onUpdateJobStatus(row)">{{
+          row.jobStatus === 1 ? "禁用" : "启用"
+        }}</el-button>
         <el-button link type="danger" @click="crudStore.onDelete(row)">删除</el-button>
       </template>
     </vxe-grid>
